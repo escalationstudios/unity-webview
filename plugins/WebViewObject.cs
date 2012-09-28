@@ -33,8 +33,10 @@ public class UnitySendMessageDispatcher
 	public static void Dispatch(string name, string method, string message)
 	{
 		GameObject obj = GameObject.Find(name);
-		if (obj != null)
-			obj.SendMessage(method, message);
+		if( obj != null )
+		{
+			obj.SendMessage( method, message );
+		}
 	}
 }
 #endif
@@ -55,31 +57,48 @@ public class WebViewObject : MonoBehaviour
 	Vector2 offset;
 #endif
 
+	private static WebViewObject _instance;
+	public static WebViewObject Instance
+	{
+		get
+		{
+			if( _instance == null )
+			{
+				_instance = FindObjectOfType( typeof( WebViewObject ) ) as WebViewObject;
+
+				if( _instance != null )
+				{
+					return _instance;
+				}
+
+				var singleton = new GameObject( "__WebViewObject__" );
+				_instance = singleton.AddComponent<WebViewObject>();
+
+				_instance.Init( delegate( string message ) { _instance.SetVisibility( false ); } );
+			}
+
+			return _instance;
+		}
+	}
+
 #if UNITY_EDITOR || UNITY_STANDALONE_OSX
 	[DllImport("WebView")]
-	private static extern IntPtr _WebViewPlugin_Init(
-		string gameObject, int width, int height, bool ineditor);
+	private static extern IntPtr _WebViewPlugin_Init(string gameObject, int width, int height, bool ineditor);
 	[DllImport("WebView")]
 	private static extern int _WebViewPlugin_Destroy(IntPtr instance);
 	[DllImport("WebView")]
-	private static extern void _WebViewPlugin_SetRect(
-		IntPtr instance, int width, int height);
+	private static extern void _WebViewPlugin_SetRect(IntPtr instance, int width, int height);
 	[DllImport("WebView")]
-	private static extern void _WebViewPlugin_SetVisibility(
-		IntPtr instance, bool visibility);
+	private static extern void _WebViewPlugin_SetVisibility(IntPtr instance, bool visibility);
 	[DllImport("WebView")]
-	private static extern void _WebViewPlugin_LoadURL(
-		IntPtr instance, string url);
+	private static extern void _WebViewPlugin_LoadURL(IntPtr instance, string url);
 	[DllImport("WebView")]
-	private static extern void _WebViewPlugin_EvaluateJS(
-		IntPtr instance, string url);
+	private static extern void _WebViewPlugin_EvaluateJS(IntPtr instance, string url);
 	[DllImport("WebView")]
-	private static extern void _WebViewPlugin_Update(IntPtr instance,
-		int x, int y, float deltaY, bool down, bool press, bool release,
-		bool keyPress, short keyCode, string keyChars, int textureId);
+	private static extern void _WebViewPlugin_Update(IntPtr instance, int x, int y, float deltaY, bool down, bool press, bool release, bool keyPress, short keyCode, string keyChars, int textureId);
 #elif UNITY_IPHONE
 	[DllImport("__Internal")]
-	private static extern IntPtr _WebViewPlugin_Init(string gameObject);
+	private static extern IntPtr _WebViewPlugin_Init(string gameObject, string failAlertTitle, string failAlertMessage, string failAlertButton);
 	[DllImport("__Internal")]
 	private static extern int _WebViewPlugin_Destroy(IntPtr instance);
 	[DllImport("__Internal")]
@@ -118,7 +137,7 @@ public class WebViewObject : MonoBehaviour
 		webView = _WebViewPlugin_Init(name, Screen.width, Screen.height,
 			Application.platform == RuntimePlatform.OSXEditor);
 #elif UNITY_IPHONE
-		webView = _WebViewPlugin_Init(name);
+		webView = _WebViewPlugin_Init(name, "ERROR", "ERROR_CONNECTION", "OK");
 #elif UNITY_ANDROID
 		offset = new Vector2(0, 0);
 		webView = new AndroidJavaObject("net.gree.unitywebview.WebViewPlugin");
@@ -141,6 +160,7 @@ public class WebViewObject : MonoBehaviour
 			return;
 		webView.Call("Destroy");
 #endif
+		_instance = null;
 	}
 
 	public void SetMargins(int left, int top, int right, int bottom)
@@ -210,8 +230,10 @@ public class WebViewObject : MonoBehaviour
 
 	public void CallFromJS(string message)
 	{
-		if (callback != null)
-			callback(message);
+		if( callback != null )
+		{
+			callback( message );
+		}
 	}
 
 #if UNITY_EDITOR || UNITY_STANDALONE_OSX
@@ -233,7 +255,8 @@ public class WebViewObject : MonoBehaviour
 		bool keyPress = false;
 		string keyChars = "";
 		short keyCode = 0;
-		if (inputString.Length > 0) {
+		if (inputString.Length > 0)
+		{
 			keyPress = true;
 			keyChars = inputString.Substring(0, 1);
 			keyCode = (short)inputString[0];
@@ -245,8 +268,7 @@ public class WebViewObject : MonoBehaviour
 			texture.GetNativeTextureID());
 		GL.IssuePluginEvent((int)webView);
 		Matrix4x4 m = GUI.matrix;
-		GUI.matrix = Matrix4x4.TRS(new Vector3(0, Screen.height, 0),
-			Quaternion.identity, new Vector3(1, -1, 1));
+		GUI.matrix = Matrix4x4.TRS(new Vector3(0, Screen.height, 0), Quaternion.identity, new Vector3(1, -1, 1));
 		GUI.DrawTexture(rect, texture);
 		GUI.matrix = m;
 	}

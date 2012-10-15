@@ -21,6 +21,7 @@
 
 #import <UIKit/UIKit.h>
 
+void UnityPause(bool pause);
 extern void UnitySendMessage(const char *, const char *, const char *);
 extern UIViewController *UnityGetGLViewController();
 
@@ -68,9 +69,18 @@ extern UIViewController *UnityGetGLViewController();
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType
 {
 	NSString *url = [[request URL] absoluteString];
-	if ([url hasPrefix:@"unity:"])
-	{
-		UnitySendMessage([gameObjectName UTF8String], "CallFromJS", [[url substringFromIndex:6] UTF8String]);
+	if ([url hasPrefix:@"unity:"]) {
+		NSString *command = [url substringFromIndex:6];
+		
+		if( [command isEqualToString: @"touchStart"] ) {
+			UnityPause( YES );
+		} else if( [command isEqualToString: @"touchEnd"] ) {
+			UnityPause( NO );
+		} else {
+			UnityPause( NO );
+			UnitySendMessage([gameObjectName UTF8String], "CallFromJS", [command UTF8String]);
+		}
+		
 		return NO;
 	} else {
 		return YES;
@@ -110,7 +120,7 @@ extern UIViewController *UnityGetGLViewController();
 
 - (void)setVisibility:(BOOL)visibility
 {
-	webView.hidden = visibility ? NO : YES;
+	webView.hidden = !visibility;
 }
 
 - (void)loadURL:(const char *)url
@@ -162,12 +172,14 @@ void _WebViewPlugin_SetVisibility(void *instance, BOOL visibility)
 {
 	WebViewPlugin *webViewPlugin = (WebViewPlugin *)instance;
 	[webViewPlugin setVisibility:visibility];
+	UnityPause( visibility );
 }
 
 void _WebViewPlugin_LoadURL(void *instance, const char *url)
 {
 	WebViewPlugin *webViewPlugin = (WebViewPlugin *)instance;
 	[webViewPlugin loadURL:url];
+	UnityPause( YES );
 }
 
 void _WebViewPlugin_EvaluateJS(void *instance, const char *js)
